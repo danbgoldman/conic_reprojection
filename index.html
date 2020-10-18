@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<head>
+	
+</head>
+<body>
+	<img id="source-image" src="Dan-Goldman.jpeg">
+	<canvas id="canvas"></canvas>
+	
+	<script>
+		
+		function modifyPixels(width, height, pixels) {
+	    // Choose the smaller of x or y dimensions.
+	    const minDim = Math.min(width, height);
+			const inPixels = Array.from(pixels);
+    	
+			for (var y=0; y<height; y++) {
+				for (var x=0; x<width; x++) {
+			    // Normalize coordinates so that the smaller dimension goes from -0.5 to 0.5.
+					let u = (x-width/2.0)/minDim;
+					let v = (y-height/2.0)/minDim;
+
+			    // Convert to polar coordinates
+			    const rad = Math.sqrt(u*u + v*v);
+			    let theta = Math.atan2(v, u);
+    
+			    // Scale theta inversely by a constant from 0 to 1.
+			    // This reduces the range of angles that are used.
+					const scale = 0.7;
+			    theta /= scale;
+    
+			    // Convert back to Cartesian coordinates
+					u = rad*Math.cos(theta);
+					v = rad*Math.sin(theta);
+					
+					let x_i = (u*minDim + width/2.0);
+					let y_i = (v*minDim + height/2.0);
+
+					const o = 4 * (y*width + x);
+
+			    // Anything with radius > 0.5 is black.
+			    // Anything with theta outside the original circle is also black.
+					if (rad >= 0.5 || theta < -Math.PI || theta >= Math.PI) {
+						pixels[o] = 0;
+						pixels[o+1] = 0;
+						pixels[o+2] = 0;
+						pixels[o+3] = 0;
+					} else {
+						// Copy the color at that coordinate.
+						const i = (Math.round(y_i)*width + Math.round(x_i))*4;
+						// TODO use bilinear interpolation
+
+						pixels[o]   = inPixels[i];
+						pixels[o+1] = inPixels[i+1];
+						pixels[o+2] = inPixels[i+2];
+						pixels[o+3] = 255;
+					}
+				}
+			}
+		}
+		
+		
+		
+		// self executing function here
+		(function() {
+		   // your page initialization code here
+		   // the DOM will be available here
+			const source = document.getElementById('source-image');
+			
+			source.onload = function () {
+
+				// Create the canvas and get a context
+				const canvas = document.getElementById('canvas');
+				const context = canvas.getContext('2d');
+
+				// Set the canvas to be the same size as the original image
+				canvas.width = source.naturalWidth;
+				canvas.height = source.naturalHeight;
+
+				// Draw the image onto the top-left corner of the canvas
+				context.drawImage(source, 0, 0);
+		
+				const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+				const pixels = imageData.data;
+				
+				modifyPixels(canvas.width, canvas.height, pixels);
+				
+				context.putImageData(imageData, 0, 0);
+				
+				console.log(pixels.length);
+			};
+
+		})();
+	</script>
+	
+</body>
