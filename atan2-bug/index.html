@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<head>
+	<script src="https://cdn.jsdelivr.net/npm/gpu.js@latest/dist/gpu-browser.min.js"></script>
+	
+</head>
+
+<body>
+	<script>
+    const gpu = new GPU({ mode: 'gpu' });
+			
+		const kernel = gpu.createKernel(function(width) {
+			const x = this.thread.x;
+			const y = this.thread.y;
+			
+			// Normalize coordinates so that the smaller dimension goes from -0.5 to 0.5.
+			const u = (x-width/2.0)/width;
+			const v = (y-width/2.0)/width;
+			
+	    // Convert to polar coordinates
+	    const rad = Math.sqrt(u*u + v*v);
+	    const theta = Math.atan2(v, u);
+			
+			if (rad > 0.5) {
+				this.color(1,1,1,1);
+			} else {
+				if (theta<0) {
+					this.color(-theta/Math.PI, 0, 0, 1);
+				} else {
+					this.color(0, 0, theta/Math.PI, 1);
+				}
+			}
+		})
+			.setGraphical(true)
+			.setOutput([300, 300]);
+		
+		kernel(300);
+		document.getElementsByTagName('body')[0].appendChild(kernel.canvas);
+		
+  </script>

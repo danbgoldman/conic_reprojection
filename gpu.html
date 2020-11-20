@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<head>
+	<script src="https://cdn.jsdelivr.net/npm/gpu.js@latest/dist/gpu-browser.min.js"></script>
+	
+</head>
+<body>
+	<div class="slidecontainer">
+	  <input type="range" min="0" max="100" value="70" class="slider" id="myRange">
+	</div>
+	<img id="source-image" src="Dan-Goldman.jpeg" style="display: none;">
+	
+	<script>
+		// GPU is a constructor and namespace for browser
+    const gpu = new GPU({ mode: 'gpu' });
+		
+		const img = document.getElementById('source-image');
+		const minDim = Math.min(img.width, img.height);
+	
+		const kernel = gpu.createKernel(function(image, width, height, minDim, scale) {
+			const x = this.thread.x;
+			const y = this.thread.y;
+			
+			// Normalize coordinates so that the smaller dimension goes from -0.5 to 0.5.
+			const u = (x-minDim/2.0)/minDim;
+			const v = (y-minDim/2.0)/minDim;
+			
+	    // Convert to polar coordinates
+	    const rad = Math.sqrt(u*u + v*v);
+	    let theta = Math.atan2(v, u);
+			
+			if (true) {
+			if (u<0) {
+				if (v<0) {
+					theta -= Math.PI;
+				} else {
+					theta += Math.PI;
+				}
+			} else {
+				if (u==0) theta = v>0 ? Math.PI/2 : -Math.PI/2;
+			}
+		  }
+			
+			this.color(theta<0 ? -theta/Math.PI : 0.0,
+							   theta>0 ? theta/Math.PI: 0.0,
+			           theta>0 ? 1.0 : 0.0, 1.0);
+
+	    // Scale theta inversely by a constant from 0 to 1.
+	    // This reduces the range of angles that are used.
+	    theta /= scale;
+			
+	    // Convert back to Cartesian coordinates
+			u = rad*Math.cos(theta);
+			v = rad*Math.sin(theta);
+			
+			let x_i = (u*minDim + width/2.0);
+			let y_i = (v*minDim + height/2.0);
+
+	    // Anything with radius > 0.5 is black.
+	    // Anything with theta outside the original circle is also black.
+			if (rad >= 0.5 || theta < -Math.PI || theta >= Math.PI) {
+				this.color(1, 1, 1, 1);
+			} else {
+				// Copy the color at that coordinate.
+				const pixel = image[Math.round(y_i)][Math.round(x_i)];
+				
+				// TODO use bilinear interpolation
+				this.color(pixel[0], pixel[1], pixel[2], 1.0);
+   		}
+		})
+		  .setGraphical(true)
+		  .setOutput([minDim, minDim]);
+
+		const slider = document.getElementById("myRange");
+
+		img.onload = () => {
+		  kernel(img, img.width, img.height, minDim, slider.value/100);
+  
+		  document.getElementsByTagName('body')[0].appendChild(kernel.canvas);
+		};
+		
+
+		// Update the canvas each time you drag the slider handle
+		slider.oninput = function() {
+		  kernel(img, img.width, img.height, minDim, this.value/100);
+		}
+		
+  </script>
+    
+</body>
